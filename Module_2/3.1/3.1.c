@@ -2,11 +2,11 @@
 #include<stdlib.h>
 #include <sys/stat.h>
 #include<string.h>
-#include <unistd.h>
+#include <sys/types.h>
 
 
 void print_binar(mode_t mode) {
-	printf("Бинарное представление");
+	printf("Бинарное представление: ");
 	printf((mode & S_IRUSR) ? "r" : "-");
 	printf((mode & S_IWUSR) ? "w" : "-");
 	printf((mode & S_IXUSR) ? "x" : "-");
@@ -16,7 +16,7 @@ void print_binar(mode_t mode) {
 	printf((mode & S_IROTH) ? "r" : "-");
 	printf((mode & S_IWOTH) ? "w" : "-");
 	printf((mode & S_IXOTH) ? "x" : "-");
-	printf("Цифровое представление: %o\n", mode & 0777);
+	printf("\nЦифровое представление: %o\n", mode & 0777);
 }
 void get_file_stat(const char* filename) {
 	struct stat filestat;
@@ -27,7 +27,7 @@ void get_file_stat(const char* filename) {
 	}
 	print_binar(filestat.st_mode);
 }
-mode_t parse(const char perm) {
+mode_t parse(const char *perm) {
 	mode_t mode = 0;
 
 	if (strlen(perm) != 9) {
@@ -77,7 +77,8 @@ int main(int argc, char* argv[]) {
 	}
 	
 
-	if (strcmp(argv[1], "-p") == 0) {
+	if (strncmp(argv[1], "-p", 100) == 0) {
+		printf("%s",argv[1]);
 		if (argc != 3) {
 			fprintf(stderr, "Ошибка: укажите строку прав доступа (например, rwxr-xr-- или 755).\n");
 			return EXIT_FAILURE;
@@ -94,7 +95,7 @@ int main(int argc, char* argv[]) {
 		print_binar(mode);
 	}
 	else {
-		parse(argv[1]);
+		get_file_stat(argv[1]);
 	}
 	
 }
