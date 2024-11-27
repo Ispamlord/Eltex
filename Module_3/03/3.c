@@ -4,7 +4,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #define MAX_CONTACTS 20
-#define MAX_LENGHT 25
+#define MAX_LENGHT 512
 
 typedef struct Contact {
     char firstname[MAX_LENGHT];
@@ -24,7 +24,7 @@ typedef struct Item {
     Item* next;
     Item* prev;
 }Item;
-
+void writen_to_file(const char* filename, Contact* contact);
 
 Item* find_contact(Item* head, char* firstname, char* secondname) {
     Item* item = head;
@@ -144,7 +144,7 @@ void PrintContact(Contact con) {
 void Write_All_from_list(const char* filename,Item* head){
     Item* current = head;
     while(current){
-        writen_to_file(filename, current->con);
+        writen_to_file(filename, &current->con);
         current= current->next;
     }
 }
@@ -173,6 +173,11 @@ void read_contact_from_file(const char *filename, Contact *contact) {
     }
 
     ssize_t read_bytes = read(fd, contact, sizeof(Contact));
+    PrintContact(*contact);
+    read(fd, contact, sizeof(Contact));
+    PrintContact(*contact);
+    read(fd, contact, sizeof(Contact));
+    PrintContact(*contact);
     if (read_bytes != sizeof(Contact)) {
         perror("Ошибка чтения структуры");
         close(fd);
@@ -192,7 +197,7 @@ Item* read_all_contacts_from_file(const char* filename, Item* head) {
     ssize_t read_bytes;
 
     while ((read_bytes = read(fd, &temp_contact, sizeof(Contact))) == sizeof(Contact)) {
-        head = add_to_list(head, temp_contact); // Используем ранее написанную функцию для добавления в список
+        head = Add_contacts(head, temp_contact); // Используем ранее написанную функцию для добавления в список
     }
 
     if (read_bytes != 0) {
@@ -221,25 +226,26 @@ int main() {
 
     // Добавляем тестовые данные в список
     for (int i = 0; i < 5; i++) {
-        contact_list = add_to_list(contact_list, test_contacts[i]);
+        contact_list = Add_contacts(contact_list, test_contacts[i]);
     }
-
+    Contact *contact;
     printf("Список контактов после добавления:\n");
-    print_list(contact_list);
+    //printList(contact_list);
 
     // Запись в файл
-    write_all_to_file(filename, contact_list);
+    Write_All_from_list(filename, contact_list);
     printf("Контакты записаны в файл '%s'.\n", filename);
 
     // Удаляем список из памяти
-    delete_list(contact_list);
+    deleteList(contact_list);
 
     // Чтение из файла
     contact_list = read_all_contacts_from_file(filename, NULL);
+    //read_contact_from_file(filename, contact);
     printf("Список контактов после чтения из файла:\n");
-    print_list(contact_list);
-
-    // Очистка памяти
-    delete_list(contact_list);
+    printList(contact_list);
+    
+    deleteList(contact_list);
+    
     return 0;
 }
