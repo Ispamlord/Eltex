@@ -2,11 +2,11 @@
 #include<stdlib.h>
 #include <string.h>
 #define MAX_CONTACTS 20
-#define MAX_LENGHT 25
+#define MAX_LENGHT 64
 
 typedef struct {
-    const char firstname[MAX_LENGHT];
-    const char secondname[MAX_LENGHT];
+    char firstname[MAX_LENGHT];
+    char secondname[MAX_LENGHT];
     char middlename[MAX_LENGHT];
     char place_work[MAX_LENGHT];
     char name_work[MAX_LENGHT];
@@ -15,6 +15,7 @@ typedef struct {
     char link_mess[MAX_LENGHT];
     char profile[MAX_LENGHT];
 }Contact;
+typedef struct Tree Tree;
 
 
 typedef struct Tree {
@@ -100,7 +101,7 @@ Tree* deleteContact(Tree* root, const char* secondname, const char* firstname) {
         root->right = deleteContact(root->right, secondname, firstname);
     }
     else {
-        // Найден узел для удаления
+        
         if (root->left == NULL) {
             Tree* temp = root->right;
             free(root);
@@ -112,13 +113,13 @@ Tree* deleteContact(Tree* root, const char* secondname, const char* firstname) {
             return temp;
         }
 
-        // Узел имеет двух потомков
+        
         Tree* minNode = root->right;
         while (minNode->left != NULL) {
             minNode = minNode->left;
         }
 
-        root->con = minNode->con;  // Замена на минимальный элемент
+        root->con = minNode->con;  
         root->right = deleteContact(root->right, minNode->con.secondname, minNode->con.firstname);
     }
 
@@ -128,18 +129,26 @@ Tree* deleteContact(Tree* root, const char* secondname, const char* firstname) {
 void printcontact(Contact con) {
     printf("Фамилия: %s\nИмя %s\nОтчество: %s\nEmail: %s\nСсылка на мессенджер: %s\nПрофиль %s\nТелефон: %s\nМесто работы: %s\nДолжность: %s\n", con.secondname, con.firstname, con.middlename, con.email, con.link_mess, con.profile, con.phone, con.place_work, con.name_work);
 }
+void printContacteasy(Contact con){
+    printf("Фамилия: %s\nИмя %s\nОтчество: %s\n", con.secondname, con.firstname, con.middlename);
+}
 void printList(Tree* q) {
     if (q == NULL) return;
     printList(q->left);
     printcontact(q->con);
     printList(q->right);
 }
+void printListeasy(Tree* q) {
+    if (q == NULL) return;
+    printListeasy(q->left);
+    printContacteasy(q->con);
+    printListeasy(q->right);
+}
 
 
 int main() {
     Tree* head = NULL;
 
-    // Добавление контактов
     Contact contact1 = create_contact("Иван", "Иванов", "Иванович", "Компания А", "Инженер", "ivanov@mail.com", "123456789", "messenger.com/ivanov", "profile.com/ivanov");
     Contact contact2 = create_contact("Петр", "Петров", "Петрович", "Компания Б", "Менеджер", "petrov@mail.com", "987654321", "messenger.com/petrov", "profile.com/petrov");
     Contact contact3 = create_contact("Сергей", "Сергеев", "Сергеевич", "Компания В", "Разработчик", "sergeev@mail.com", "112233445", "messenger.com/sergeev", "profile.com/sergeev");
@@ -152,39 +161,39 @@ int main() {
     Add_contacts(&head, contact4);
 
     printf("Контакты после добавления:\n");
-    printList(head);
+    printListeasy(head);
 
     printf("\nПопытка добавления дубликата Ивана Иванова:\n");
     Add_contacts(&head, duplicateContact);
-    printList(head);
+    printListeasy(head);
 
     printf("\nРедактирование телефона и email Сергея Сергеева:\n");
     Edit_contact(&head, "Сергей", "Сергеев", "554433221", "messenger.com/sergeev_new", "Компания В", "Разработчик", "sergeev_new@mail.com", "profile.com/sergeev", "link.com/sergeev");
-    printList(head);
+    printListeasy(head);
 
     printf("\nПопытка редактирования несуществующего контакта (Мария Морозова):\n");
     Edit_contact(&head, "Мария", "Морозова", "667788990", "messenger.com/morozova", "Компания Д", "Дизайнер", "morozova@mail.com", "profile.com/morozova", "link.com/morozova");
-    printList(head);
+    printListeasy(head);
 
     printf("\nУдаление контакта Анны Антоновой (лист):\n");
     head = deleteContact(head, "Анна", "Антонова");
-    printList(head);
+    printListeasy(head);
 
     printf("\nУдаление контакта Сергея Сергеева (с одним потомком):\n");
     head = deleteContact(head, "Сергей", "Сергеев");
-    printList(head);
+    printListeasy(head);
 
     printf("\nУдаление контакта Ивана Иванова (корень):\n");
     head = deleteContact(head, "Иван", "Иванов");
-    printList(head);
+    printListeasy(head);
 
     printf("\nУдаление контакта Петра Петрова (последний контакт):\n");
     head = deleteContact(head, "Петр", "Петров");
-    printList(head);
+    printListeasy(head);
 
     printf("\nПопытка удаления из пустого дерева:\n");
     head = deleteContact(head, "Неизвестный", "Контакт");
-    printList(head);
+    printListeasy(head);
 
     printf("\nОсвобождение памяти дерева:\n");
     deleteTree(head);
