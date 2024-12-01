@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <mqueue.h>
+#include<string.h>
 #define QUEUE_NAME "/my_queue"
 #define PRIORITY 1
 #define SIZE 256
@@ -25,7 +26,7 @@ int main() {
 		}
 
 		printf("You: ");
-		fgets(new_text, MAX_SIZE, stdin);
+		fgets(new_text, SIZE, stdin);
 		new_text[strcspn(new_text, "\n")] = '\0';
 		
 		if (mq_send(ds, new_text, strlen(new_text), PRIORITY) == -1) {

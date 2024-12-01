@@ -5,7 +5,8 @@
 #include<sys/wait.h>
 #include<unistd.h>
 #include <fcntl.h>
-
+#include<stdbool.h>
+#include<signal.h>
 volatile sig_atomic_t file_locked = false;
 void handle_sigusr1(int sig) {
     file_locked = true; 
@@ -14,12 +15,15 @@ void handle_sigusr2(int sig) {
     file_locked = false; 
 }
 
-void Parent_process(int *pipefd,int count){
+void Parent_process(int *pipefd,int count, pid_t Child_Pid){
     close(pipefd[1]);
 
     int r =0 ;
     for(int i=0;i<count;i++){
-        kill(0, SIGUSR1);
+        sleep(3);
+        
+        kill(Child_Pid, SIGUSR1);
+        
         if(read(pipefd[0],&r,sizeof(r))>0){
             printf("Read from pipe %d\n", r);
         }
@@ -27,8 +31,9 @@ void Parent_process(int *pipefd,int count){
             perror("read");
             break;
         }
-        kill(0, SIGUSR2);
-        sleep(1);
+        
+        kill(Child_Pid, SIGUSR2);
+        
     }
     close(pipefd[0]);
     wait(NULL);
@@ -39,7 +44,7 @@ void Child_Process(int *pipefd,int count){
     close(pipefd[0]);
     for(int i = 0; i<count;i++){
         while (file_locked) {
-            usleep(1000)
+            usleep(1000);
         }
         int r = rand()%100;
         printf("Write in pipe: %d\n",r);
@@ -66,7 +71,7 @@ int main(int argc, char* argv[]){
     int r;
     int pipefd[2];
     if(pipe(pipefd)){
-        fprintf(stderr,'Pipe failed.\n');
+        fprintf(stderr,"Pipe failed.\n");
         return EXIT_FAILURE;
     }
     pid = fork();
@@ -78,7 +83,7 @@ int main(int argc, char* argv[]){
         Child_Process(pipefd, count);
     }
     else{
-        Parent_process(pipefd, count);
+        Parent_process(pipefd, count, pid);
     }
     return 0;
     

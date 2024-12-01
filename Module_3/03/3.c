@@ -141,7 +141,7 @@ Item* Delete_contact(Item* head, char* firstname, char* secondname) {
 void PrintContact(Contact con) {
     printf("Фамилия: %s\nИмя:%s \nОтчество: %s\nКомпания: %s\nПрофессия: %s\nЕмаил: %s\nНомер телефона: %s\nСоцсеть: %s\nПрофиль: %s\n", con.secondname, con.firstname, con.middlename, con.place_work, con.name_work, con.email, con.phone, con.link_mess, con.profile);
 }
-void Write_All_from_list(const char* filename,Item* head){
+void Write_All_to_file(const char* filename,Item* head){
     Item* current = head;
     while(current){
         writen_to_file(filename, &current->con);
@@ -233,7 +233,7 @@ int main() {
     //printList(contact_list);
 
     // Запись в файл
-    Write_All_from_list(filename, contact_list);
+    Write_All_to_file(filename, contact_list);
     printf("Контакты записаны в файл '%s'.\n", filename);
 
     // Удаляем список из памяти
