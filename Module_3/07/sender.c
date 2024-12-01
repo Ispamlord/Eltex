@@ -10,8 +10,9 @@ int main() {
 	struct mq_attr attr;
 	attr.mq_flags = 0;
 	attr.mq_maxmsg = 10;
-	attr.mq_msgsize = MAX_SIZE;
+	attr.mq_msgsize = SIZE;
 	attr.mq_curmsgs = 0;
+	int prio;
 	if ((ds = mq_open(QUEUE_NAME,
 		O_CREAT | O_RDWR, 0600,
 		&attr)) == (mqd_t) -1) {
@@ -20,7 +21,7 @@ int main() {
 	}
 	while(1) {
 		printf("You: ");
-		fgets(new_text, MAX_SIZE, stdin);
+		fgets(new_text, SIZE, stdin);
 		new_text[strcspn(new_text, "\n")] = '\0';
 
 		if (mq_send(ds, new_text, strlen(new_text), PRIORITY) == -1) {
@@ -31,7 +32,14 @@ int main() {
 		if (strncmp(new_text, "exit", SIZE) == 0) {
 			break;
 		}
-
+		if (mq_receive(ds, new_text, SIZE, &prio) == -1) {
+			perror("cannot receive");
+			return -1;
+		}
+		printf("Friend: %s\n", new_text);
+		if (strcmp(new_text, "exit") == 0) {
+			break;
+		}
 		
 	}
 	if (mq_close(ds) == -1)

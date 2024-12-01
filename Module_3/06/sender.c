@@ -15,7 +15,7 @@ int main(int argc, char* argv[]) {
 
 	key_t key; int msgid; char str[256];
 	Message mes;
-	key = ftok("chat");
+	key = ftok("text.txt",65);
 	if (key == -1) {
 		perror("Key");
 		exit(EXIT_FAILURE);
@@ -25,8 +25,8 @@ int main(int argc, char* argv[]) {
 		printf("You: ");
 		fgets(mes.Data, MAX_TEXT, stdin);
 		mes.Data[strcspn(mes.Data, "\n")] = '\0';
-		mes.mtype = 0;
-		if (msgsnd(msgid, &msg, sizeof(msg.Data), 0) == -1) {
+		mes.mtype = 1;
+		if (msgsnd(msgid, &mes, sizeof(mes.Data), 0) == -1) {
 			perror("msgsnd");
 			exit(EXIT_FAILURE);
 		}
