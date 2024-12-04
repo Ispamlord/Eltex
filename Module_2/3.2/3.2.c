@@ -21,7 +21,7 @@ void int_to_ip(unsigned int ip_int, char* ip) {
 }
 
 // Функция для проверки принадлежности IP-адреса подсети
-int is_in_subnet(unsigned int ip, unsigned int subnet, unsigned int mask) {
+bool is_in_subnet(unsigned int ip, unsigned int subnet, unsigned int mask) {
     return (ip & mask) == (subnet & mask);
 }
 
@@ -66,8 +66,7 @@ int main(int argc, char* argv[]) {
             other_network_count++;
         }
     }
-
-    // Выводим статистику
+    
     printf("Количество пакетов, предназначенных для узлов своей подсети: %d (%.2f%%)\n",
         same_network_count, (float)same_network_count / num_packets * 100);
     printf("Количество пакетов, предназначенных для узлов других сетей: %d (%.2f%%)\n",
