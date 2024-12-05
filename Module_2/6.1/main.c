@@ -10,12 +10,12 @@ int main(void) {
     head = Add_contacts(head, contact1);
     head = Add_contacts(head, contact2);
 
-    printf("Контакты после добавления:\n");
+    printf("\nКонтакты после добавления:\n");
     printList(head);
-
+    printf("\nКонтакты после изменения:\n");
     head = Edit_contact(head, "Иван", "Иванов", "555555555", "messenger.com/ivanov", "Компания А", "Инженер", "ivanov@mail.com", "profile.com/ivanov", "link.com/ivan");
     printList(head);
-
+    printf("\nКонтакты после удаления:\n");
     head = Delete_contact(head, "Петр", "Петров");
     printList(head);
 
