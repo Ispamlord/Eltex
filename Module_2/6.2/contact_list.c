@@ -20,6 +20,8 @@ Item* Edit_contact(Item* head, char* firstname, char* secondname, char* phone, c
         printf("Такого контакта не существует\n");
         return head;
     }
+    strncpy(item->con.place_work, place_work, MAX_LENGHT);
+    strncpy(item->con.name_work, name_work, MAX_LENGHT);
     strncpy(item->con.email, email, MAX_LENGHT);
     strncpy(item->con.phone, phone, MAX_LENGHT);
     strncpy(item->con.link_mess, link_mess, MAX_LENGHT);
@@ -32,6 +34,8 @@ Contact create_contact(char* firstname, char* secondname, char* middlename, char
     strncpy(newcontact.firstname, firstname, MAX_LENGHT);
     strncpy(newcontact.secondname, secondname, MAX_LENGHT);
     strncpy(newcontact.middlename, middlename, MAX_LENGHT);
+    strncpy(newcontact.place_work, place_work, MAX_LENGHT);
+    strncpy(newcontact.name_work, name_work, MAX_LENGHT);
     strncpy(newcontact.email, email, MAX_LENGHT);
     strncpy(newcontact.phone, phone, MAX_LENGHT);
     strncpy(newcontact.link_mess, link_mess, MAX_LENGHT);

@@ -3,7 +3,7 @@
 
 #include <stddef.h>
 
-#define MAX_LENGHT 25
+#define MAX_LENGHT 50
 
 typedef struct Contact {
     char firstname[MAX_LENGHT];
