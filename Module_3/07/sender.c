@@ -26,7 +26,7 @@ int main() {
 
 		if (mq_send(ds, new_text, strlen(new_text), PRIORITY) == -1) {
 			perror("Sending message error");
-			return -1;
+			break;
 		}
 
 		if (strncmp(new_text, "exit", SIZE) == 0) {
@@ -34,7 +34,7 @@ int main() {
 		}
 		if (mq_receive(ds, new_text, SIZE, &prio) == -1) {
 			perror("cannot receive");
-			return -1;
+			break;
 		}
 		printf("Friend: %s\n", new_text);
 		if (strcmp(new_text, "exit") == 0) {
