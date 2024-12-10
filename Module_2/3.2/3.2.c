@@ -1,76 +1,72 @@
 ﻿#include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <time.h>
 #include <arpa/inet.h>
-#include <string.h>
 
-#define MAX_IP 4294967295  // Максимальное значение для 32-битного IP-адреса
-
-// Функция для преобразования IP в число
-unsigned int ip_to_int(const char* ip) {
-    struct in_addr addr;
-    inet_pton(AF_INET, ip, &addr);
-    return ntohl(addr.s_addr);
+int is_in_subnet(uint32_t ip, uint32_t gateway, uint32_t mask) {
+    return (ip & mask) == (gateway & mask);
 }
 
-// Функция для преобразования числа в IP-адрес
-void int_to_ip(unsigned int ip_int, char* ip) {
-    struct in_addr addr;
-    addr.s_addr = htonl(ip_int);
-    inet_ntop(AF_INET, &addr, ip, INET_ADDRSTRLEN);
+uint32_t generate_random_ip() {
+    return (rand() % 256) << 24 | (rand() % 256) << 16 | (rand() % 256) << 8 | (rand() % 256);
 }
 
-// Функция для проверки принадлежности IP-адреса подсети
-bool is_in_subnet(unsigned int ip, unsigned int subnet, unsigned int mask) {
-    return (ip & mask) == (subnet & mask);
+void ip_to_string(uint32_t ip, char* buffer) {
+    sprintf(buffer, "%u.%u.%u.%u",
+        (ip >> 24) & 0xFF,
+        (ip >> 16) & 0xFF,
+        (ip >> 8) & 0xFF,
+        ip & 0xFF);
 }
 
 int main(int argc, char* argv[]) {
     if (argc != 4) {
-        printf("Использование: %s <IP-адрес шлюза> <Маска подсети> <Количество пакетов>\n", argv[0]);
+        printf("Usage: %s <gateway_ip> <subnet_mask> <packet_count>\n", argv[0]);
         return 1;
     }
 
-    // Преобразуем входные аргументы
-    char gateway_ip[INET_ADDRSTRLEN];
-    char subnet_mask[INET_ADDRSTRLEN];
-    int num_packets;
+    uint32_t gateway, mask;
+    if (!inet_pton(AF_INET, argv[1], &gateway) || !inet_pton(AF_INET, argv[2], &mask)) {
+        printf("Invalid IP or subnet mask.\n");
+        return 1;
+    }
+    gateway = ntohl(gateway);
+    mask = ntohl(mask);
 
-    strcpy(gateway_ip, argv[1]);
-    strcpy(subnet_mask, argv[2]);
-    num_packets = atoi(argv[3]);
+    int packet_count = atoi(argv[3]);
+    if (packet_count <= 0) {
+        printf("Invalid packet count.\n");
+        return 1;
+    }
 
-    // Преобразуем IP-адрес шлюза и маску подсети в числа
-    unsigned int gateway = ip_to_int(gateway_ip);
-    unsigned int mask = ip_to_int(subnet_mask);
+    srand(time(NULL)); 
 
-    // Определяем сеть, к которой принадлежит шлюз
-    unsigned int subnet = gateway & mask;
+    int same_subnet_count = 0;
+    int other_subnet_count = 0;
 
-    // Статистика
-    int same_network_count = 0;
-    int other_network_count = 0;
+    printf("Processing %d packets...\n", packet_count);
 
-    srand(time(NULL));
+    for (int i = 0; i < packet_count; i++) {
+        uint32_t random_ip = generate_random_ip();
+        char ip_str[16];
+        ip_to_string(random_ip, ip_str);
 
-    // Генерация и обработка пакетов
-    for (int i = 0; i < num_packets; i++) {
-        // Генерация случайного IP-адреса назначения
-        unsigned int destination_ip = rand() % MAX_IP;
-
-        // Проверяем, принадлежит ли адрес подсети
-        if (is_in_subnet(destination_ip, subnet, mask)) {
-            same_network_count++;
+        if (is_in_subnet(random_ip, gateway, mask)) {
+            same_subnet_count++;
+            printf("Packet %d: %s is in the same subnet.\n", i + 1, ip_str);
         }
         else {
-            other_network_count++;
+            other_subnet_count++;
+            printf("Packet %d: %s is in a different subnet.\n", i + 1, ip_str);
         }
     }
-    
-    printf("Количество пакетов, предназначенных для узлов своей подсети: %d (%.2f%%)\n",
-        same_network_count, (float)same_network_count / num_packets * 100);
-    printf("Количество пакетов, предназначенных для узлов других сетей: %d (%.2f%%)\n",
-        other_network_count, (float)other_network_count / num_packets * 100);
+
+    printf("\nStatistics:\n");
+    printf("Same subnet: %d packets (%.2f%%)\n", same_subnet_count,
+        (100.0 * same_subnet_count) / packet_count);
+    printf("Different subnet: %d packets (%.2f%%)\n", other_subnet_count,
+        (100.0 * other_subnet_count) / packet_count);
 
     return 0;
 }
