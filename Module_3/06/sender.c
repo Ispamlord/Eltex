@@ -40,6 +40,7 @@ int main(int argc, char* argv[]) {
 			exit(EXIT_FAILURE);
 		}
 		printf("Получено %s\n", mes.Data);
+		
 		if (strcmp("exit", mes.Data) == 0) {
 			break;
 		}

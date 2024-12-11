@@ -54,11 +54,9 @@ int main(int argc, char *argv[]) {
 
         if (is_in_subnet(random_ip, gateway, mask)) {
             same_subnet_count++;
-            printf("Packet %d: %s is in the same subnet.\n", i + 1, ip_str);
         }
         else {
             other_subnet_count++;
-            printf("Packet %d: %s is in a different subnet.\n", i + 1, ip_str);
         }
     }
 
