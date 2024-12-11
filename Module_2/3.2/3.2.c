@@ -20,7 +20,7 @@ void ip_to_string(uint32_t ip, char* buffer) {
         ip & 0xFF);
 }
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
     if (argc != 4) {
         printf("Usage: %s <gateway_ip> <subnet_mask> <packet_count>\n", argv[0]);
         return 1;
@@ -68,5 +68,5 @@ int main(int argc, char* argv[]) {
     printf("Different subnet: %d packets (%.2f%%)\n", other_subnet_count,
         (100.0 * other_subnet_count) / packet_count);
 
-    return 0;
+    return EXIT_SUCCESS;
 }
