@@ -10,8 +10,7 @@ int main() {
 	struct mq_attr attr, old_attr;
 	int prio;
 	if ((ds = mq_open(QUEUE_NAME,
-		O_RDWR | O_NONBLOCK, 0600,
-		NULL)) == (mqd_t)-1) {
+		O_RDONLY)) == (mqd_t)-1) {
 		perror("Creating queue error");
 		return -1;
 	}
