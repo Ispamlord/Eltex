@@ -19,7 +19,7 @@ void Parent_process(int* pipefd, int count) {
     for (int i = 0; i < count; i++) {
         // Разрешаем дочернему процессу записать данные
         sem_post(&sem);
-
+        sleep(1);
         // Читаем из канала
         if (read(pipefd[0], &r, sizeof(r)) > 0) {
             printf("Read from pipe: %d\n", r);
@@ -29,10 +29,7 @@ void Parent_process(int* pipefd, int count) {
             break;
         }
 
-        sem_wait(&sem);
-
-        // Задержка перед следующим циклом
-        sleep(1);
+        sleep(2);
     }
 
     close(pipefd[0]);
@@ -52,9 +49,7 @@ void Child_Process(int* pipefd, int count) {
             close(pipefd[1]);
             exit(1);
         }
-        sem_post(&sem);
-
-        sleep(1);
+        
     }
     close(pipefd[1]);
     exit(0);
