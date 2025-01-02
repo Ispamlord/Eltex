@@ -71,6 +71,6 @@ static void __exit proc_cleanup(void) {
 }
 
 MODULE_LICENSE("GPL");
-MODULE_AUTHOR("Fantomas");
+MODULE_AUTHOR("serov");
 module_init(proc_init);
 module_exit(proc_cleanup);
