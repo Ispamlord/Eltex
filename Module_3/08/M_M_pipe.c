@@ -17,11 +17,10 @@ void Parent_process(int* pipefd, int count) {
     int r = 0;
 
     for (int i = 0; i < count; i++) {
-        sleep(3);
-
-        // Разрешаем дочернему процессу писать в канал
+        // Разрешаем дочернему процессу записать данные
         sem_post(&sem);
 
+        // Читаем из канала
         if (read(pipefd[0], &r, sizeof(r)) > 0) {
             printf("Read from pipe: %d\n", r);
         }
@@ -30,19 +29,20 @@ void Parent_process(int* pipefd, int count) {
             break;
         }
 
-        // Блокируем доступ дочернего процесса
         sem_wait(&sem);
+
+        // Задержка перед следующим циклом
+        sleep(1);
     }
 
     close(pipefd[0]);
-    wait(NULL);  // Ожидаем завершения дочернего процесса
+    wait(NULL);
 }
 
 void Child_Process(int* pipefd, int count) {
     close(pipefd[0]);
     for (int i = 0; i < count; i++) {
-        // Ждем, пока родительский процесс разрешит доступ
-        sem_wait(&sem);
+        sem_wait(&sem);  // Ожидание разрешения от родителя
 
         int r = rand() % 100;
         printf("Write to pipe: %d\n", r);
@@ -52,6 +52,8 @@ void Child_Process(int* pipefd, int count) {
             close(pipefd[1]);
             exit(1);
         }
+        sem_post(&sem);
+
         sleep(1);
     }
     close(pipefd[1]);
@@ -69,8 +71,8 @@ int main(int argc, char* argv[]) {
     pid_t pid;
     int pipefd[2];
 
-    // Инициализация семафора (0 - начальное значение)
-    if (sem_init(&sem, 1, 0) == -1) {
+    // Инициализация семафора с 1 (разрешить первую запись)
+    if (sem_init(&sem, 1, 1) == -1) {
         perror("sem_init failed");
         exit(EXIT_FAILURE);
     }
@@ -92,8 +94,6 @@ int main(int argc, char* argv[]) {
         Parent_process(pipefd, count);
     }
 
-    // Уничтожаем семафор после завершения работы
-    sem_destroy(&sem);
-
+    sem_destroy(&sem);  // Уничтожаем семафор после работы
     return 0;
 }
