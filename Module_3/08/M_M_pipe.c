@@ -91,6 +91,7 @@ int main(int argc, char* argv[]) {
         Parent_process(pipefd, count);
     }
 
-    sem_destroy(&sem);  // Уничтожаем семафор после работы
+    sem_destroy(&read_sem); 
+    sem_destroy(&write_sem);// Уничтожаем семафор после работы
     return 0;
 }
