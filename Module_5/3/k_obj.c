@@ -18,24 +18,24 @@ static struct kobject* example_kobject;
 static struct timer_list my_timer;
 static struct tty_driver* my_driver;
 static int kbledstatus = 0;
-static int value = 0;
+static int counter = 0;
 
 static ssize_t foo_show(struct kobject* kobj, struct kobj_attribute* attr, char* buf) {
-    return sprintf(buf, "%d\n", value);
+    return sprintf(buf, "%d\n", counter);
 }
 
 static ssize_t foo_store(struct kobject* kobj, struct kobj_attribute* attr, const char* buf, size_t count) {
-    sscanf(buf, "%du", &value);
+    sscanf(buf, "%du", &counter);
     return count;
 }
 
 static void my_timer_func(struct timer_list* unused) {
     struct tty_struct* t = vc_cons[fg_console].d->port.tty;
 
-    if (kbledstatus == value)
+    if (kbledstatus == counter)
         kbledstatus = RESTORE_LEDS;
     else
-        kbledstatus = value;
+        kbledstatus = counter;
 
     (my_driver->ops->ioctl)(t, KDSETLED, kbledstatus);
 
@@ -77,12 +77,12 @@ static int __init led_init(void) {
 
     pr_debug("Module initialized successfully \n");
 
-    example_kobject = kobject_create_and_add("sys_test", kernel_kobj);
+    example_kobject = kobject_create_and_add("sysf_test", kernel_kobj);
     if (!example_kobject)
         return -ENOMEM;
 
     if ((error = sysfs_create_file(example_kobject, &foo_attribute.attr))) {
-        pr_debug("failed to create the foo file in /sys/kernel/sys_test \n");
+        pr_debug("failed to create the foo file in /sys/kernel/sysf_test \n");
         return error;
     }
     if ((error = kbleds_init())) {
