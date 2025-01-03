@@ -37,7 +37,7 @@ void Parent_process(int* pipefd, int count) {
 }
 
 void Child_Process(int* pipefd, int count) {
-    close(pipefd[0]);  // Закрываем чтение в дочернем процессе (писатель)
+    close(pipefd[0]);
 
     for (int i = 0; i < count; i++) {
         sem_wait(&write_sem);
@@ -52,20 +52,43 @@ void Child_Process(int* pipefd, int count) {
         }
 
         sem_post(&write_sem);
+
         sleep(1);
     }
-    close(pipefd[1]);  // Закрываем запись, сигнализируя о завершении данных
+    close(pipefd[1]);
     exit(0);
 }
-
 void Reader_process(int* pipefd, int count) {
-    close(pipefd[1]);  // Закрываем запись в процессе читателя
-
+    close(pipefd[1]);
     int r = 0;
-    while (read(pipefd[0], &r, sizeof(r)) > 0) {
-        printf("Reader %d read: %d\n", getpid(), r);
+
+    for (int i = 0; i < count; i++) {
+        sem_wait(&read_sem);
+        reader_count++;
+        if (reader_count == 1) {
+            sem_wait(&write_sem);
+        }
+        sem_post(&read_sem);
+
+        if (read(pipefd[0], &r, sizeof(r)) > 0) {
+            printf("Reader %d read: %d\n", getpid(), r);
+        }
+        else {
+            perror("read");
+            break;
+        }
+
+        sem_wait(&read_sem);
+        reader_count--;
+        if (reader_count == 0) {
+            sem_post(&write_sem);
+        }
+        sem_post(&read_sem);
+
+        sleep(1);
     }
-    close(pipefd[0]);  // Закрываем канал после завершения чтения
+
+    close(pipefd[0]);
     exit(0);
 }
 
@@ -81,16 +104,14 @@ int main(int argc, char* argv[]) {
     pid_t pid;
     int pipefd[2];
 
-    // Инициализация семафоров
-    sem_init(&write_sem, 1, 1);  // Запись доступна
-    sem_init(&read_sem, 1, 1);   // Управление читателями
+    sem_init(&write_sem, 1, 1);  
+    sem_init(&read_sem, 1, 1);  
 
     if (pipe(pipefd)) {
         fprintf(stderr, "Pipe failed.\n");
         return EXIT_FAILURE;
     }
 
-    // Запускаем процесс записи
     pid = fork();
     if (pid < 0) {
         perror("fail fork");
@@ -99,8 +120,7 @@ int main(int argc, char* argv[]) {
     else if (pid == 0) {
         Child_Process(pipefd, count);
     }
-
-    // Запускаем несколько процессов читателей
+    
     for (int i = 0; i < num_readers; i++) {
         pid = fork();
         if (pid < 0) {
@@ -112,12 +132,10 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    // Ждём завершения всех процессов
     for (int i = 0; i < num_readers + 1; i++) {
         wait(NULL);
     }
 
-    // Уничтожаем семафоры
     sem_destroy(&write_sem);
     sem_destroy(&read_sem);
 
