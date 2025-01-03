@@ -37,7 +37,7 @@ void Parent_process(int* pipefd, int count) {
 }
 
 void Child_Process(int* pipefd, int count) {
-    close(pipefd[0]);
+    close(pipefd[0]);  // Закрываем чтение в дочернем процессе (писатель)
 
     for (int i = 0; i < count; i++) {
         sem_wait(&write_sem);
@@ -52,50 +52,20 @@ void Child_Process(int* pipefd, int count) {
         }
 
         sem_post(&write_sem);
-
         sleep(1);
     }
-    close(pipefd[1]);
+    close(pipefd[1]);  // Закрываем запись, сигнализируя о завершении данных
     exit(0);
 }
 
-// Процесс читателя (множество процессов)
 void Reader_process(int* pipefd, int count) {
-    close(pipefd[1]);
+    close(pipefd[1]);  // Закрываем запись в процессе читателя
+
     int r = 0;
-
-    for (int i = 0; i < count; i++) {
-        // Блокировка на обновление счётчика читателей
-        sem_wait(&read_sem);
-        reader_count++;
-        if (reader_count == 1) {
-            // Первый читатель блокирует запись
-            sem_wait(&write_sem);
-        }
-        sem_post(&read_sem);
-
-        // Чтение данных
-        if (read(pipefd[0], &r, sizeof(r)) > 0) {
-            printf("Reader %d read: %d\n", getpid(), r);
-        }
-        else {
-            perror("read");
-            break;
-        }
-
-        // Освобождение после чтения
-        sem_wait(&read_sem);
-        reader_count--;
-        if (reader_count == 0) {
-            // Последний читатель разблокирует запись
-            sem_post(&write_sem);
-        }
-        sem_post(&read_sem);
-
-        sleep(1);
+    while (read(pipefd[0], &r, sizeof(r)) > 0) {
+        printf("Reader %d read: %d\n", getpid(), r);
     }
-
-    close(pipefd[0]);
+    close(pipefd[0]);  // Закрываем канал после завершения чтения
     exit(0);
 }
 
