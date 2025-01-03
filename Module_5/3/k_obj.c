@@ -24,10 +24,12 @@ static struct timer_list my_timer;
 
 static void update_leds(int mask)
 {
-    if (my_driver && my_driver->ops && my_driver->ops->ioctl)
-        (my_driver->ops->ioctl)(vc_cons[fg_console].d->port.tty, KDSETLED, mask);
-    else
-        pr_warn("kbleds: Failed to update LEDs, driver not available\n");
+    if (vc_cons[0].d && my_driver && my_driver->ops && my_driver->ops->ioctl) {
+        (my_driver->ops->ioctl)(vc_cons[0].d->port.tty, KDSETLED, mask);
+    }
+    else {
+        pr_warn("kbleds: Failed to update LEDs, tty or driver not available\n");
+    }
 }
 
 static ssize_t led_show(struct kobject* kobj, struct kobj_attribute* attr, char* buf)
@@ -37,9 +39,7 @@ static ssize_t led_show(struct kobject* kobj, struct kobj_attribute* attr, char*
 
 static ssize_t led_store(struct kobject* kobj, struct kobj_attribute* attr, const char* buf, size_t count)
 {
-    int ret;
-
-    ret = sscanf(buf, "%du", &led_mask);
+    int ret = sscanf(buf, "%du", &led_mask);
     if (ret != 1) {
         pr_warn("kbleds: Invalid input\n");
         return -EINVAL;
@@ -49,7 +49,7 @@ static ssize_t led_store(struct kobject* kobj, struct kobj_attribute* attr, cons
     return count;
 }
 
-static struct kobj_attribute led_attribute = __ATTR(led_mask, 0660, led_show, led_store);
+static struct kobj_attribute led_attribute = __ATTR(test, 0660, led_show, led_store);
 
 static void my_timer_func(struct timer_list* ptr)
 {
@@ -75,13 +75,13 @@ static int __init sys_init(void)
         return error;
     }
 
-    if (!vc_cons[fg_console].d) {
-        pr_err("kbleds: No console available\n");
+    if (!vc_cons[0].d) {
+        pr_err("kbleds: No active console available\n");
         kobject_put(example_kobject);
         return -ENODEV;
     }
 
-    my_driver = vc_cons[fg_console].d->port.tty->driver;
+    my_driver = vc_cons[0].d->port.tty->driver;
     if (!my_driver) {
         pr_err("kbleds: Failed to get tty driver\n");
         kobject_put(example_kobject);
