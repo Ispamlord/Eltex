@@ -6,7 +6,7 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <linux/sysfs.h>
-#include <linux/vt.h>
+#include <linux/vt_kern.h>
 #include <linux/console.h>
 #include <linux/timer.h>
 
@@ -33,39 +33,50 @@ static ssize_t foo_store(struct kobject* kobj, struct kobj_attribute* attr, cons
 }
 
 static void my_timer_func(struct timer_list* unused) {
-    struct vc_data* vc = vc_cons[fg_console].d;
-    struct tty_struct* t = vc->port.tty;
+    struct vc_data* vc;
+    struct tty_struct* tty;
 
-    if (kbledstatus == value)
-        kbledstatus = RESTORE_LEDS;
-    else
-        kbledstatus = value;
+    console_lock();
+    vc = console_driver->ops->get_cons(console_driver, -1);
+    tty = vc ? vc->port.tty : NULL;
 
-    if (t && t->driver && t->driver->ops->ioctl)
-        (t->driver->ops->ioctl)(t, KDSETLED, kbledstatus);
+    if (tty && tty->driver && tty->driver->ops->ioctl) {
+        kbledstatus = (kbledstatus == value) ? RESTORE_LEDS : value;
+        tty->driver->ops->ioctl(tty, KDSETLED, kbledstatus);
+    }
+    console_unlock();
 
     mod_timer(&my_timer, jiffies + BLINK_DELAY);
 }
 
 static int kbleds_init(void) {
-    struct vc_data* vc = vc_cons[fg_console].d;
+    struct vc_data* vc;
 
-    if (!vc || !vc->port.tty)
+    console_lock();
+    vc = console_driver->ops->get_cons(console_driver, -1);
+    if (!vc || !vc->port.tty) {
+        console_unlock();
         return -ENODEV;
-
+    }
     my_driver = vc->port.tty->driver;
+    console_unlock();
 
     timer_setup(&my_timer, my_timer_func, 0);
     mod_timer(&my_timer, jiffies + BLINK_DELAY);
+
     return 0;
 }
 
 static void kbleds_cleanup(void) {
-    struct vc_data* vc = vc_cons[fg_console].d;
+    struct vc_data* vc;
 
     del_timer_sync(&my_timer);
+
+    console_lock();
+    vc = console_driver->ops->get_cons(console_driver, -1);
     if (vc && vc->port.tty && my_driver->ops->ioctl)
-        (my_driver->ops->ioctl)(vc->port.tty, KDSETLED, RESTORE_LEDS);
+        my_driver->ops->ioctl(vc->port.tty, KDSETLED, RESTORE_LEDS);
+    console_unlock();
 }
 
 static struct kobj_attribute foo_attribute = __ATTR(value, 0660, foo_show, foo_store);
