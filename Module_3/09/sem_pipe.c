@@ -59,18 +59,22 @@ void Child_Process(int* pipefd, int count) {
     exit(0);
 }
 
+// Процесс читателя (множество процессов)
 void Reader_process(int* pipefd, int count) {
     close(pipefd[1]);
     int r = 0;
 
     for (int i = 0; i < count; i++) {
+        // Блокировка на обновление счётчика читателей
         sem_wait(&read_sem);
         reader_count++;
         if (reader_count == 1) {
+            // Первый читатель блокирует запись
             sem_wait(&write_sem);
         }
         sem_post(&read_sem);
 
+        // Чтение данных
         if (read(pipefd[0], &r, sizeof(r)) > 0) {
             printf("Reader %d read: %d\n", getpid(), r);
         }
@@ -79,9 +83,11 @@ void Reader_process(int* pipefd, int count) {
             break;
         }
 
+        // Освобождение после чтения
         sem_wait(&read_sem);
         reader_count--;
         if (reader_count == 0) {
+            // Последний читатель разблокирует запись
             sem_post(&write_sem);
         }
         sem_post(&read_sem);
@@ -105,14 +111,16 @@ int main(int argc, char* argv[]) {
     pid_t pid;
     int pipefd[2];
 
-    sem_init(&write_sem, 1, 1);  
-    sem_init(&read_sem, 1, 1);   
+    // Инициализация семафоров
+    sem_init(&write_sem, 1, 1);  // Запись доступна
+    sem_init(&read_sem, 1, 1);   // Управление читателями
 
     if (pipe(pipefd)) {
         fprintf(stderr, "Pipe failed.\n");
         return EXIT_FAILURE;
     }
 
+    // Запускаем процесс записи
     pid = fork();
     if (pid < 0) {
         perror("fail fork");
@@ -122,6 +130,7 @@ int main(int argc, char* argv[]) {
         Child_Process(pipefd, count);
     }
 
+    // Запускаем несколько процессов читателей
     for (int i = 0; i < num_readers; i++) {
         pid = fork();
         if (pid < 0) {
@@ -132,10 +141,13 @@ int main(int argc, char* argv[]) {
             Reader_process(pipefd, count);
         }
     }
+
+    // Ждём завершения всех процессов
     for (int i = 0; i < num_readers + 1; i++) {
         wait(NULL);
     }
 
+    // Уничтожаем семафоры
     sem_destroy(&write_sem);
     sem_destroy(&read_sem);
 
