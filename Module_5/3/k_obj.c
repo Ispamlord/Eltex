@@ -1,104 +1,85 @@
-#include <linux/tty.h>
-#include <linux/fs.h>
-#include <linux/init.h>
-#include <linux/kd.h>
-#include <linux/kobject.h>
 #include <linux/module.h>
-#include <linux/string.h>
+#include <linux/printk.h>
+#include <linux/kobject.h>
 #include <linux/sysfs.h>
+#include <linux/init.h>
+#include <linux/fs.h>
+#include <linux/string.h>
+#include <linux/tty.h>
+#include <linux/kd.h>
 #include <linux/vt.h>
-#include <linux/vt_kern.h>
 #include <linux/console_struct.h>
+#include <linux/timer.h>
 
-#define BLINK_DELAY HZ / 5
-#define ALL_LEDS_ON 0x07
-#define RESTORE_LEDS 0xFF
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Keyboard LED control via sysfs");
 
 static struct kobject* example_kobject;
-static struct timer_list my_timer;
+static int led_mask = 0;
 static struct tty_driver* my_driver;
-static int kbledstatus = 0;
-static int value = 0;
+static struct timer_list my_timer;
 
-static ssize_t foo_show(struct kobject* kobj, struct kobj_attribute* attr, char* buf) {
-    return sprintf(buf, "%d\n", value);
+#define BLINK_DELAY HZ / 5
+#define RESTORE_LEDS 0xFF
+
+static void update_leds(int mask)
+{
+    (my_driver->ops->ioctl)(vc_cons[fg_console].d->port.tty, KDSETLED, mask);
 }
 
-static ssize_t foo_store(struct kobject* kobj, struct kobj_attribute* attr, const char* buf, size_t count) {
-    sscanf(buf, "%du", &value);
+static ssize_t led_show(struct kobject* kobj, struct kobj_attribute* attr, char* buf)
+{
+    return sprintf(buf, "%d\n", led_mask);
+}
+
+static ssize_t led_store(struct kobject* kobj, struct kobj_attribute* attr, const char* buf, size_t count)
+{
+    sscanf(buf, "%du", &led_mask);
+    update_leds(led_mask);
     return count;
 }
 
-static void my_timer_func(struct timer_list* unused) {
-    struct tty_struct* t = vc_cons[fg_console].d->port.tty;
+static struct kobj_attribute led_attribute = __ATTR(test, 0660, led_show, led_store);
 
-    if (kbledstatus == value)
-        kbledstatus = RESTORE_LEDS;
-    else
-        kbledstatus = value;
-
-    (my_driver->ops->ioctl)(t, KDSETLED, kbledstatus);
-
-    my_timer.expires = jiffies + BLINK_DELAY;
-    add_timer(&my_timer);
+static void my_timer_func(struct timer_list* ptr)
+{
+    static int state = 0;
+    state = state ? 0 : led_mask;
+    update_leds(state);
+    mod_timer(&my_timer, jiffies + BLINK_DELAY);
 }
 
-static int kbleds_init(void) {
-    int i;
-    pr_info("kbleds: loading\n");
-    pr_info("kbleds: fgconsole is %x\n", fg_console);
-    for (i = 0; i < MAX_NR_CONSOLES; i++) {
-        if (!vc_cons[i].d)
-            break;
-        pr_info("poet_atkm: console[%i/%i] #%i, tty %lx\n", i, MAX_NR_CONSOLES, vc_cons[i].d->vc_num, (unsigned long)vc_cons[i].d->port.tty);
-    }
-    pr_info("kbleds: finished scanning consoles\n");
+static int __init sys_init(void)
+{
+    int error;
+    pr_info("kbleds: initializing sysfs LED control\n");
 
-    my_driver = vc_cons[fg_console].d->port.tty->driver;
-    pr_info("kbleds: tty driver name %x\n", my_driver->name);
-
-    timer_setup(&my_timer, my_timer_func, 0);
-
-    my_timer.expires = jiffies + BLINK_DELAY;
-    add_timer(&my_timer);
-    return 0;
-}
-
-static void kbleds_cleanup(void) {
-    pr_info("kbleds: unloading...\n");
-    del_timer(&my_timer);
-    (my_driver->ops->ioctl)(vc_cons[fg_console].d->port.tty, KDSETLED, RESTORE_LEDS);
-}
-
-static struct kobj_attribute foo_attribute = __ATTR(value, 0660, foo_show, foo_store);
-
-static int __init led_init(void) {
-    int error = 0;
-
-    pr_debug("Module initialized successfully \n");
-
-    example_kobject = kobject_create_and_add("sys_test", kernel_kobj);
+    example_kobject = kobject_create_and_add("kbleds", kernel_kobj);
     if (!example_kobject)
         return -ENOMEM;
 
-    if ((error = sysfs_create_file(example_kobject, &foo_attribute.attr))) {
-        pr_debug("failed to create the foo file in /sys/kernel/sys_test \n");
-        return error;
-    }
-    if ((error = kbleds_init())) {
-        pr_debug("failed kbleds_init \n");
+    error = sysfs_create_file(example_kobject, &led_attribute.attr);
+    if (error) {
+        pr_info("kbleds: failed to create sysfs entry\n");
+        kobject_put(example_kobject);
         return error;
     }
 
-    return error;
+    my_driver = vc_cons[fg_console].d->port.tty->driver;
+    timer_setup(&my_timer, my_timer_func, 0);
+    my_timer.expires = jiffies + BLINK_DELAY;
+    add_timer(&my_timer);
+
+    return 0;
 }
 
-static void __exit exit_module(void) {
-    pr_debug("Module un initialized successfully \n");
-    kbleds_cleanup();
+static void __exit sys_exit(void)
+{
+    pr_info("kbleds: exiting and cleaning up\n");
+    del_timer(&my_timer);
+    update_leds(RESTORE_LEDS);
     kobject_put(example_kobject);
 }
 
-MODULE_LICENSE("GPL");
-module_init(led_init);
-module_exit(exit_module);
+module_init(sys_init);
+module_exit(sys_exit);
