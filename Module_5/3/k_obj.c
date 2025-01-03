@@ -24,7 +24,10 @@ static struct timer_list my_timer;
 
 static void update_leds(int mask)
 {
-    (my_driver->ops->ioctl)(vc_cons[fg_console].d->port.tty, KDSETLED, mask);
+    if (my_driver && my_driver->ops && my_driver->ops->ioctl)
+        (my_driver->ops->ioctl)(vc_cons[fg_console].d->port.tty, KDSETLED, mask);
+    else
+        pr_warn("kbleds: Failed to update LEDs, driver not available\n");
 }
 
 static ssize_t led_show(struct kobject* kobj, struct kobj_attribute* attr, char* buf)
@@ -34,12 +37,19 @@ static ssize_t led_show(struct kobject* kobj, struct kobj_attribute* attr, char*
 
 static ssize_t led_store(struct kobject* kobj, struct kobj_attribute* attr, const char* buf, size_t count)
 {
-    sscanf(buf, "%du", &led_mask);
+    int ret;
+
+    ret = sscanf(buf, "%du", &led_mask);
+    if (ret != 1) {
+        pr_warn("kbleds: Invalid input\n");
+        return -EINVAL;
+    }
+
     update_leds(led_mask);
     return count;
 }
 
-static struct kobj_attribute led_attribute = __ATTR(test, 0660, led_show, led_store);
+static struct kobj_attribute led_attribute = __ATTR(led_mask, 0660, led_show, led_store);
 
 static void my_timer_func(struct timer_list* ptr)
 {
@@ -60,12 +70,24 @@ static int __init sys_init(void)
 
     error = sysfs_create_file(example_kobject, &led_attribute.attr);
     if (error) {
-        pr_info("kbleds: failed to create sysfs entry\n");
+        pr_err("kbleds: failed to create sysfs entry\n");
         kobject_put(example_kobject);
         return error;
     }
 
+    if (!vc_cons[fg_console].d) {
+        pr_err("kbleds: No console available\n");
+        kobject_put(example_kobject);
+        return -ENODEV;
+    }
+
     my_driver = vc_cons[fg_console].d->port.tty->driver;
+    if (!my_driver) {
+        pr_err("kbleds: Failed to get tty driver\n");
+        kobject_put(example_kobject);
+        return -ENODEV;
+    }
+
     timer_setup(&my_timer, my_timer_func, 0);
     my_timer.expires = jiffies + BLINK_DELAY;
     add_timer(&my_timer);
