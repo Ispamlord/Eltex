@@ -93,13 +93,18 @@ static ssize_t device_read(struct file* filp,
         bytes_read++;
     }
     *offset += bytes_read;
-    return bytes_read;
+    return bytes_read+1;
 }
 
-static ssize_t device_write(struct file* filp, const char __user* buff,
-    size_t len, loff_t* off) {
-    pr_alert("Sorry, this operation is not supported.\n");
-    return -EINVAL;
+static ssize_t device_write(struct file* filp, const char __user* buff, size_t len, loff_t* off) {
+    if (len > BUF_LEN - 1) {
+        len = BUF_LEN - 1;
+    }
+    memset(msg, 0, BUF_LEN);
+    if (copy_from_user(msg, buff, len)) {
+        return -EFAULT;
+    }
+    return len;
 }
 
 module_init(chardev_init);
