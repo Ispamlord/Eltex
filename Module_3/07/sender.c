@@ -1,49 +1,55 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <mqueue.h>
-#define QUEUE_NAME "/my_queue"
-#define PRIORITY 1
-#define SIZE 256
+#include <fcntl.h>
+#include <unistd.h>
+
+#define QUEUE_NAME "/chat_queue"
+#define MAX_SIZE 1024
+#define END_PRIORITY 10
+
 int main() {
-	mqd_t ds;
-	char new_text[SIZE];
-	struct mq_attr attr;
-	attr.mq_flags = 0;
-	attr.mq_maxmsg = 10;
-	attr.mq_msgsize = SIZE;
-	attr.mq_curmsgs = 0;
-	int prio;
-	if ((ds = mq_open(QUEUE_NAME,
-		O_CREAT | O_RDWR, 0600,
-		&attr)) == (mqd_t) -1) {
-		perror("Creating queue error");
-		return -1;
-	}
-	while(1) {
-		printf("You: ");
-		fgets(new_text, SIZE, stdin);
-		new_text[strcspn(new_text, "\n")] = '\0';
+    mqd_t mq;
+    char buffer[MAX_SIZE];
+    struct mq_attr attr;
 
-		if (mq_send(ds, new_text, strlen(new_text), PRIORITY) == -1) {
-			perror("Sending message error");
-			break;
-		}
+    attr.mq_flags = 0;
+    attr.mq_maxmsg = 10;
+    attr.mq_msgsize = MAX_SIZE;
+    attr.mq_curmsgs = 0;
 
-		if (strncmp(new_text, "exit", SIZE) == 0) {
-			break;
-		}
-		if (mq_receive(ds, new_text, SIZE, &prio) == -1) {
-			perror("cannot receive");
-			break;
-		}
-		printf("Friend: %s\n", new_text);
-		if (strcmp(new_text, "exit") == 0) {
-			break;
-		}
-		
-	}
-	if (mq_close(ds) == -1)
-		perror("Closing queue error");
-	return 0;
-	
+    mq = mq_open(QUEUE_NAME, O_CREAT | O_RDWR, 0644, &attr);
+    if (mq == -1) {
+        perror("mq_open");
+        exit(1);
+    }
+
+    printf("Type messages to send (type 'exit' to quit):\n");
+    while (1) {
+        printf("You: ");
+        fgets(buffer, MAX_SIZE, stdin);
+        buffer[strlen(buffer) - 1] = '\0';
+
+        if (strcmp(buffer, "exit") == 0) {
+            mq_send(mq, buffer, strlen(buffer) + 1, END_PRIORITY);
+            break;
+        }
+        mq_send(mq, buffer, strlen(buffer) + 1, 1);
+
+        ssize_t bytes_read = mq_receive(mq, buffer, MAX_SIZE, &prio);
+        if (bytes_read >= 0) {
+            buffer[bytes_read] = '\0';
+            printf("Friend: %s\\n", buffer);
+        }
+
+        if (prio == END_PRIORITY) {
+            printf("Chat ended by the other side.\\n");
+            break;
+        }
+    }
+
+    mq_close(mq);
+    mq_unlink(QUEUE_NAME);
+    return 0;
 }
