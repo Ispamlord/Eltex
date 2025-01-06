@@ -44,6 +44,7 @@ void Parent_process(int* pipefd, int count, int reader_id) {
     int r = 0;
 
     for (int i = 0; i < count; i++) {
+        sleep(3);
         start_read();
         if (read(pipefd[0], &r, sizeof(r)) > 0) {
             printf("Reader %d read from pipe: %d\n", reader_id, r);
@@ -53,7 +54,6 @@ void Parent_process(int* pipefd, int count, int reader_id) {
             break;
         }
         stop_read();
-        sleep(5);
     }
 
     close(pipefd[0]);
@@ -64,6 +64,7 @@ void Child_Process(int* pipefd, int count) {
     close(pipefd[0]);
 
     for (int i = 0; i < count; i++) {
+        sleep(1);
         sem_op(sem_writer, -1); // Lock writer
 
         int r = rand() % 100;
@@ -76,7 +77,6 @@ void Child_Process(int* pipefd, int count) {
         }
 
         sem_op(sem_writer, 1);
-        sleep(1);
     }
 
     close(pipefd[1]);
