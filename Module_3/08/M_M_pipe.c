@@ -1,35 +1,42 @@
 ﻿#include <sys/types.h>
-#include<stdio.h>
-#include<stdlib.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include<sys/wait.h>
-#include<unistd.h>
+#include <sys/wait.h>
+#include <unistd.h>
 #include <fcntl.h>
-#include<stdbool.h>
-#include<signal.h>
-#include <semaphore.h>
+#include <stdbool.h>
+#include <signal.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
 
-sem_t sem;
+int sem_id;
 
-void Parent_process(int* pipefd, int count) {
+void sem_op(int sem_id, int op) {
+    struct sembuf sem_buf;
+    sem_buf.sem_num = 0;
+    sem_buf.sem_op = op;
+    sem_buf.sem_flg = 0;
+    semop(sem_id, &sem_buf, 1);
+}
+
+void Parent_process(int* pipefd, int count, pid_t Child_Pid) {
     close(pipefd[1]);
     int r = 0;
 
     for (int i = 0; i < count; i++) {
-        
-        sem_post(&sem);
+        sleep(3);
+        sem_op(sem_id, -1);  // Ждем доступ к файлу (или ресурсу)
 
         if (read(pipefd[0], &r, sizeof(r)) > 0) {
-            printf("Read from pipe: %d\n", r);
+            printf("Read from pipe %d\n", r);
         }
         else {
             perror("read");
             break;
         }
 
-        sem_wait(&sem);
-
-        sleep(1);
+        sem_op(sem_id, 1);  // Освобождаем ресурс
     }
 
     close(pipefd[0]);
@@ -38,40 +45,47 @@ void Parent_process(int* pipefd, int count) {
 
 void Child_Process(int* pipefd, int count) {
     close(pipefd[0]);
+
     for (int i = 0; i < count; i++) {
-        sem_wait(&sem);  
+        sem_op(sem_id, -1);  // Ждем, пока родитель освободит семафор
 
         int r = rand() % 100;
-        printf("Write to pipe: %d\n", r);
+        printf("Write in pipe: %d\n", r);
 
         if (write(pipefd[1], &r, sizeof(r)) == -1) {
             perror("write");
             close(pipefd[1]);
+            sem_op(sem_id, 1);
             exit(1);
         }
-        sem_post(&sem);
 
+        sem_op(sem_id, 1);  // Освобождаем ресурс
         sleep(1);
     }
+
     close(pipefd[1]);
     exit(0);
 }
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
-        perror("Enter 2 elements");
+        perror("Enter 2 element");
         exit(EXIT_FAILURE);
     }
 
     int count = atoi(argv[1]);
-
     pid_t pid;
     int pipefd[2];
 
-    if (sem_init(&sem, 1, 1) == -1) {
-        perror("sem_init failed");
+    // Создаем System V семафор
+    key_t key = ftok("/tmp", 'a');
+    sem_id = semget(key, 1, 0666 | IPC_CREAT);
+    if (sem_id == -1) {
+        perror("semget");
         exit(EXIT_FAILURE);
     }
+
+    semctl(sem_id, 0, SETVAL, 1);
 
     if (pipe(pipefd)) {
         fprintf(stderr, "Pipe failed.\n");
@@ -87,9 +101,11 @@ int main(int argc, char* argv[]) {
         Child_Process(pipefd, count);
     }
     else {
-        Parent_process(pipefd, count);
+        Parent_process(pipefd, count, pid);
     }
 
-    sem_destroy(&sem);
+    // Удаляем семафор
+    semctl(sem_id, 0, IPC_RMID);
+
     return 0;
 }
