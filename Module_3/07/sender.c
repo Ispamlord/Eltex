@@ -19,6 +19,7 @@ int main() {
     attr.mq_msgsize = MAX_SIZE;
     attr.mq_curmsgs = 0;
 
+    unsigned int prio;
     mq = mq_open(QUEUE_NAME, O_CREAT | O_RDWR, 0644, &attr);
     if (mq == -1) {
         perror("mq_open");
