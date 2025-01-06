@@ -118,7 +118,7 @@ int main(int argc, char* argv[]) {
 
     write_sem = semget(key1, 1, 0666 | IPC_CREAT);
     read_sem = semget(key2, 1, 0666 | IPC_CREAT);
-    shm_id = shmget(IPC_PRIVATE, sizeof(int), 0666 | IPC_CREAT);
+    shm_id = smget(IPC_PRIVATE, sizeof(int), 0666 | IPC_CREAT);
 
     if (write_sem == -1 || read_sem == -1 || shm_id == -1) {
         perror("semget/shmget");
