@@ -41,11 +41,11 @@ int main() {
         ssize_t bytes_read = mq_receive(mq, buffer, MAX_SIZE, &prio);
         if (bytes_read >= 0) {
             buffer[bytes_read] = '\0';
-            printf("Friend: %s\\n", buffer);
+            printf("Friend: %s\n", buffer);
         }
 
         if (prio == END_PRIORITY) {
-            printf("Chat ended by the other side.\\n");
+            printf("Chat ended by the other side.\n");
             break;
         }
     }
