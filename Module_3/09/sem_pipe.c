@@ -22,7 +22,7 @@ void sem_op(int sem_id, int op) {
 }
 
 void start_read() {
-    sem_op(sem_readers, -1); 
+    sem_op(sem_readers, -1);
     readers_count++;
     if (readers_count == 1) {
         sem_op(sem_writer, -1);
@@ -31,33 +31,33 @@ void start_read() {
 }
 
 void stop_read() {
-    sem_op(sem_readers, -1); 
+    sem_op(sem_readers, -1);
     readers_count--;
     if (readers_count == 0) {
-        sem_op(sem_writer, 1); 
+        sem_op(sem_writer, 1);
     }
-    sem_op(sem_readers, 1); 
+    sem_op(sem_readers, 1);
 }
 
-void Parent_process(int* pipefd, int count, pid_t Child_Pid) {
+void Parent_process(int* pipefd, int count, int reader_id) {
     close(pipefd[1]);
     int r = 0;
 
     for (int i = 0; i < count; i++) {
         start_read();
         if (read(pipefd[0], &r, sizeof(r)) > 0) {
-            printf("Parent read from pipe: %d\n", r);
+            printf("Reader %d read from pipe: %d\n", reader_id, r);
         }
         else {
             perror("read");
             break;
         }
         stop_read();
-        sleep(2);
+        sleep(5);
     }
 
     close(pipefd[0]);
-    wait(NULL);
+    exit(0);
 }
 
 void Child_Process(int* pipefd, int count) {
@@ -79,20 +79,17 @@ void Child_Process(int* pipefd, int count) {
         sleep(1);
     }
 
-    sleep(10);  
-    close(pipefd[1]);  
+    close(pipefd[1]);
     exit(0);
 }
 
-
 int main(int argc, char* argv[]) {
     if (argc != 3) {
-        perror("Usage: ./program <count> < num_readers>");
+        perror("Usage: ./program <count> <num_readers>");
         exit(EXIT_FAILURE);
     }
     int num_readers = atoi(argv[2]);
     int count = atoi(argv[1]);
-    pid_t pid;
     int pipefd[2];
 
     key_t key_writer = ftok("/tmp", 'a');
@@ -105,14 +102,15 @@ int main(int argc, char* argv[]) {
         exit(EXIT_FAILURE);
     }
 
-    semctl(sem_writer, 0, SETVAL, 1); 
-    semctl(sem_readers, 0, SETVAL, 1); 
+    semctl(sem_writer, 0, SETVAL, 1);
+    semctl(sem_readers, 0, SETVAL, 1);
 
     if (pipe(pipefd)) {
         fprintf(stderr, "Pipe failed.\n");
         return EXIT_FAILURE;
     }
-    pid = fork();
+
+    pid_t pid = fork();
     if (pid < 0) {
         perror("fork");
         exit(EXIT_FAILURE);
@@ -128,14 +126,11 @@ int main(int argc, char* argv[]) {
             exit(EXIT_FAILURE);
         }
         else if (pid == 0) {
-            Parent_process(pipefd, count, pid);
-            exit(0);
+            Parent_process(pipefd, count, i + 1);  // Pass unique reader ID
         }
     }
 
-    
-
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < num_readers + 1; i++) {
         wait(NULL);
     }
 
