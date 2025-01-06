@@ -75,13 +75,15 @@ void Child_Process(int* pipefd, int count) {
             exit(1);
         }
 
-        sem_op(sem_writer, 1); 
+        sem_op(sem_writer, 1);
         sleep(1);
     }
 
-    close(pipefd[1]);
+    sleep(10);  
+    close(pipefd[1]);  
     exit(0);
 }
+
 
 int main(int argc, char* argv[]) {
     if (argc != 3) {
