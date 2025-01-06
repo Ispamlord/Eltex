@@ -25,8 +25,8 @@ void Parent_process(int* pipefd, int count, pid_t Child_Pid) {
     int r = 0;
 
     for (int i = 0; i < count; i++) {
-        sleep(3);
-        sem_op(sem_id, -1);  // Ждем доступ к файлу (или ресурсу)
+        sleep(1);
+        sem_op(sem_id, -1);  
 
         if (read(pipefd[0], &r, sizeof(r)) > 0) {
             printf("Read from pipe %d\n", r);
@@ -36,7 +36,7 @@ void Parent_process(int* pipefd, int count, pid_t Child_Pid) {
             break;
         }
 
-        sem_op(sem_id, 1);  // Освобождаем ресурс
+        sem_op(sem_id, 1); 
     }
 
     close(pipefd[0]);
@@ -47,7 +47,7 @@ void Child_Process(int* pipefd, int count) {
     close(pipefd[0]);
 
     for (int i = 0; i < count; i++) {
-        sem_op(sem_id, -1);  // Ждем, пока родитель освободит семафор
+        sem_op(sem_id, -1);  
 
         int r = rand() % 100;
         printf("Write in pipe: %d\n", r);
@@ -59,7 +59,7 @@ void Child_Process(int* pipefd, int count) {
             exit(1);
         }
 
-        sem_op(sem_id, 1);  // Освобождаем ресурс
+        sem_op(sem_id, 1);  
         sleep(1);
     }
 
@@ -77,7 +77,6 @@ int main(int argc, char* argv[]) {
     pid_t pid;
     int pipefd[2];
 
-    // Создаем System V семафор
     key_t key = ftok("/tmp", 'a');
     sem_id = semget(key, 1, 0666 | IPC_CREAT);
     if (sem_id == -1) {
@@ -104,7 +103,6 @@ int main(int argc, char* argv[]) {
         Parent_process(pipefd, count, pid);
     }
 
-    // Удаляем семафор
     semctl(sem_id, 0, IPC_RMID);
 
     return 0;
