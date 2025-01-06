@@ -53,7 +53,7 @@ void Parent_process(int* pipefd, int count, pid_t Child_Pid) {
             break;
         }
         stop_read();
-        sleep(1);
+        sleep(2);
     }
 
     close(pipefd[0]);
