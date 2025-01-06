@@ -7,137 +7,129 @@
 #include <fcntl.h>
 #include <stdbool.h>
 #include <signal.h>
-#include <semaphore.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
+#include <sys/shm.h>
 
-sem_t read_sem, write_sem;
-int reader_count = 0;
+#define SHM_KEY 1234
 
-void Parent_process(int* pipefd, int count) {
-    close(pipefd[1]);
-    int r = 0;
+int mutex, write_sem, shm_id;
+int* read_count;
 
-    for (int i = 0; i < count; i++) {
-        sem_wait(&write_sem);
-
-        if (read(pipefd[0], &r, sizeof(r)) > 0) {
-            printf("Read from pipe: %d\n", r);
-        }
-        else {
-            perror("read");
-            break;
-        }
-
-        sem_post(&write_sem);
-
-        sleep(1);
-    }
-
-    close(pipefd[0]);
-    wait(NULL);
+void sem_op(int sem_id, int op) {
+    struct sembuf sem_buf;
+    sem_buf.sem_num = 0;
+    sem_buf.sem_op = op;
+    sem_buf.sem_flg = 0;
+    semop(sem_id, &sem_buf, 1);
 }
 
-void Child_Process(int* pipefd, int count) {
-    close(pipefd[0]);
+void Reader_Process(const char* filename) {
+    int fd;
+    char buffer[100];
 
-    for (int i = 0; i < count; i++) {
-        sem_wait(&write_sem);
-
-        int r = rand() % 100;
-        printf("Write to pipe: %d\n", r);
-
-        if (write(pipefd[1], &r, sizeof(r)) == -1) {
-            perror("write");
-            close(pipefd[1]);
-            exit(1);
+    for (int i = 0; i < 5; i++) {
+        sem_op(mutex, -1);
+        (*read_count)++;
+        if (*read_count == 1) {
+            sem_op(write_sem, -1);  
         }
+        sem_op(mutex, 1);
 
-        sem_post(&write_sem);
-
-        sleep(1);
-    }
-    close(pipefd[1]);
-    exit(0);
-}
-void Reader_process(int* pipefd, int count) {
-    close(pipefd[1]);
-    int r = 0;
-
-    for (int i = 0; i < count; i++) {
-        sem_wait(&read_sem);
-        reader_count++;
-        if (reader_count == 1) {
-            sem_wait(&write_sem);
-        }
-        sem_post(&read_sem);
-
-        if (read(pipefd[0], &r, sizeof(r)) > 0) {
-            printf("Reader %d read: %d\n", getpid(), r);
+        // Read section
+        fd = open(filename, O_RDONLY);
+        if (fd == -1) {
+            perror("File open (reader)");
         }
         else {
-            perror("read");
-            break;
+            printf("Reader [%d]: Reading...\n", getpid());
+            read(fd, buffer, sizeof(buffer));
+            printf("Reader [%d]: %s\n", getpid(), buffer);
+            close(fd);
         }
 
-        sem_wait(&read_sem);
-        reader_count--;
-        if (reader_count == 0) {
-            sem_post(&write_sem);
+        sem_op(mutex, -1);
+        (*read_count)--;
+        if (*read_count == 0) {
+            sem_op(write_sem, 1); 
         }
-        sem_post(&read_sem);
+        sem_op(mutex, 1);
 
         sleep(1);
     }
+}
 
-    close(pipefd[0]);
-    exit(0);
+void Writer_Process(const char* filename) {
+    int fd;
+    const char* message = "Writing to file by writer process.\n";
+
+    for (int i = 0; i < 5; i++) {
+        sem_op(write_sem, -1); 
+
+        fd = open(filename, O_WRONLY | O_CREAT | O_APPEND, 0666);
+        if (fd == -1) {
+            perror("File open (writer)");
+        }
+        else {
+            printf("Writer [%d]: Writing...\n", getpid());
+            write(fd, message, strlen(message));
+            close(fd);
+        }
+
+        sem_op(write_sem, 1);  
+        sleep(2);
+    }
 }
 
 int main(int argc, char* argv[]) {
-    if (argc != 3) {
-        perror("Usage: ./program <count> <num_readers>");
+    if (argc != 2) {
+        fprintf(stderr, "Usage: %s <file>\n", argv[0]);
         exit(EXIT_FAILURE);
     }
 
-    int count = atoi(argv[1]);
-    int num_readers = atoi(argv[2]);
+    shm_id = shmget(SHM_KEY, sizeof(int), 0666 | IPC_CREAT);
+    if (shm_id == -1) {
+        perror("shmget");
+        exit(EXIT_FAILURE);
+    }
+    read_count = (int*)shmat(shm_id, NULL, 0);
+    *read_count = 0;
+
+    key_t key1 = ftok("/tmp", 'a');
+    key_t key2 = ftok("/tmp", 'b');
+
+    mutex = semget(key1, 1, 0666 | IPC_CREAT);
+    write_sem = semget(key2, 1, 0666 | IPC_CREAT);
+
+    if (mutex == -1 || write_sem == -1) {
+        perror("semget");
+        exit(EXIT_FAILURE);
+    }
+
+    semctl(mutex, 0, SETVAL, 1);     
+    semctl(write_sem, 0, SETVAL, 1); 
 
     pid_t pid;
-    int pipefd[2];
 
-    sem_init(&write_sem, 1, 1);  
-    sem_init(&read_sem, 1, 1);  
-
-    if (pipe(pipefd)) {
-        fprintf(stderr, "Pipe failed.\n");
-        return EXIT_FAILURE;
+    for (int i = 0; i < 3; i++) {
+        pid = fork();
+        if (pid == 0) {
+            Reader_Process(argv[1]);
+            exit(0);
+        }
     }
 
     pid = fork();
-    if (pid < 0) {
-        perror("fail fork");
-        exit(EXIT_FAILURE);
+    if (pid == 0) {
+        Writer_Process(argv[1]);
+        exit(0);
     }
-    else if (pid == 0) {
-        Child_Process(pipefd, count);
-    }
-    
-    for (int i = 0; i < num_readers; i++) {
-        pid = fork();
-        if (pid < 0) {
-            perror("fail fork");
-            exit(EXIT_FAILURE);
-        }
-        else if (pid == 0) {
-            Reader_process(pipefd, count);
-        }
-    }
+    while (wait(NULL) > 0);
 
-    for (int i = 0; i < num_readers + 1; i++) {
-        wait(NULL);
-    }
-
-    sem_destroy(&write_sem);
-    sem_destroy(&read_sem);
+    semctl(mutex, 0, IPC_RMID);
+    semctl(write_sem, 0, IPC_RMID);
+    shmdt(read_count);
+    shmctl(shm_id, IPC_RMID, NULL);
 
     return 0;
 }
