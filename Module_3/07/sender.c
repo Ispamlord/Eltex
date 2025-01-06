@@ -4,7 +4,7 @@
 #include <mqueue.h>
 #include <fcntl.h>
 #include <unistd.h>
-
+//sender.c
 #define QUEUE_NAME "/chat_queue"
 #define MAX_SIZE 1024
 #define END_PRIORITY 10
@@ -36,7 +36,7 @@ int main() {
             break;
         }
         mq_send(mq, buffer, strlen(buffer) + 1, 1);
-
+        sleep(1);
         ssize_t bytes_read = mq_receive(mq, buffer, MAX_SIZE, &prio);
         if (bytes_read >= 0) {
             buffer[bytes_read] = '\0';
