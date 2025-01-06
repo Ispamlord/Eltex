@@ -15,7 +15,7 @@ static void hello_nl_recv_msg(struct sk_buff* skb)
     int pid;
     struct sk_buff* skb_out;
     int msg_size;
-    char* msg = "Hello from kernel";
+    char* msg = "Hello from serov";
     int res;
 
     printk(KERN_INFO "Entering: %s\n", __FUNCTION__);
