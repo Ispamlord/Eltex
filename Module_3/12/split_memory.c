@@ -6,7 +6,7 @@
 #include <signal.h>
 #include <time.h>
 
-#define MAX_NUMBERS 100
+#define MAX_NUMBERS 10
 #define SHM_SIZE (MAX_NUMBERS * sizeof(int) + 2 * sizeof(int)) 
 
 typedef struct {
