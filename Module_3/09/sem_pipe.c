@@ -84,11 +84,11 @@ void Child_Process(int* pipefd, int count) {
 }
 
 int main(int argc, char* argv[]) {
-    if (argc != 2) {
-        perror("Usage: <program> <count>");
+    if (argc != 3) {
+        perror("Usage: ./program <count> < num_readers>");
         exit(EXIT_FAILURE);
     }
-
+    int num_readers = atoi(argv[2]);
     int count = atoi(argv[1]);
     pid_t pid;
     int pipefd[2];
@@ -110,8 +110,16 @@ int main(int argc, char* argv[]) {
         fprintf(stderr, "Pipe failed.\n");
         return EXIT_FAILURE;
     }
+    pid = fork();
+    if (pid < 0) {
+        perror("fork");
+        exit(EXIT_FAILURE);
+    }
+    else if (pid == 0) {
+        Child_Process(pipefd, count);
+    }
 
-    for (int i = 0; i < 3; i++) {  
+    for (int i = 0; i < num_readers; i++) {
         pid = fork();
         if (pid < 0) {
             perror("fork");
@@ -123,14 +131,7 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    pid = fork(); 
-    if (pid < 0) {
-        perror("fork");
-        exit(EXIT_FAILURE);
-    }
-    else if (pid == 0) {
-        Child_Process(pipefd, count);
-    }
+    
 
     for (int i = 0; i < 4; i++) {
         wait(NULL);
