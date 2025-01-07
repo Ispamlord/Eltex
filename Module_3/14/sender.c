@@ -4,52 +4,59 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 
-#define PORT 8080
-#define SERVER_IP "127.0.0.1"
+#define PORT1 8080  // Порт клиента 1
+#define PORT2 9090  // Порт клиента 2
 #define BUFFER_SIZE 1024
 
 int main() {
     int sockfd;
-    struct sockaddr_in server_addr;
+    struct sockaddr_in my_addr, peer_addr;
     char buffer[BUFFER_SIZE];
-    socklen_t addr_len = sizeof(server_addr);
 
-    // Создание UDP сокета
+    // Создание сокета
     if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         perror("Ошибка при создании сокета");
         exit(EXIT_FAILURE);
     }
 
-    // Настройка адреса сервера
-    memset(&server_addr, 0, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_port = htons(PORT);
-    server_addr.sin_addr.s_addr = inet_addr(SERVER_IP);
+    // Настройка собственного адреса
+    memset(&my_addr, 0, sizeof(my_addr));
+    my_addr.sin_family = AF_INET;
+    my_addr.sin_addr.s_addr = INADDR_ANY;
+    my_addr.sin_port = htons(PORT1);
 
-    printf("Отправитель готов. Введите сообщение:\n");
+    // Привязка к порту
+    if (bind(sockfd, (const struct sockaddr*)&my_addr, sizeof(my_addr)) < 0) {
+        perror("Ошибка при привязке");
+        exit(EXIT_FAILURE);
+    }
+
+    // Настройка адреса собеседника
+    memset(&peer_addr, 0, sizeof(peer_addr));
+    peer_addr.sin_family = AF_INET;
+    peer_addr.sin_port = htons(PORT2);
+    peer_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+    printf("Клиент 1 запущен. Введите сообщение:\n");
 
     while (1) {
-        fgets(buffer, BUFFER_SIZE, stdin); 
+        fgets(buffer, BUFFER_SIZE, stdin);
 
+        // Отправка сообщения клиенту 2
         sendto(sockfd, buffer, strlen(buffer), 0,
-            (struct sockaddr*)&server_addr, addr_len);
+            (struct sockaddr*)&peer_addr, sizeof(peer_addr));
 
         if (strncmp(buffer, "exit", 4) == 0) {
-            printf("Чат завершен.\n");
+            printf("Выход.\n");
             break;
         }
-        sleep(1);
+
+        sleep(1);  // Задержка, чтобы не получить свое сообщение
+
+        // Получение ответа
         memset(buffer, 0, BUFFER_SIZE);
-
-        // Получение сообщения
-        recvfrom(sockfd, buffer, BUFFER_SIZE, 0,
-            (struct sockaddr*)&client_addr, &addr_len);
-        printf("Получено: %s", buffer);
-
-        if (strncmp(buffer, "exit", 4) == 0) {
-            printf("Чат завершен.\n");
-            break;
-        }
+        recvfrom(sockfd, buffer, BUFFER_SIZE, 0, NULL, NULL);
+        printf("Ответ: %s", buffer);
     }
 
     close(sockfd);
