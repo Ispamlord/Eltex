@@ -45,6 +45,16 @@ int main() {
             printf("Чат завершен.\n");
             break;
         }
+        fgets(buffer, BUFFER_SIZE, stdin);
+
+        sendto(sockfd, buffer, strlen(buffer), 0,
+            (struct sockaddr*)&server_addr, addr_len);
+
+        if (strncmp(buffer, "exit", 4) == 0) {
+            printf("Чат завершен.\n");
+            break;
+        }
+        sleep(1);
     }
 
     close(sockfd);

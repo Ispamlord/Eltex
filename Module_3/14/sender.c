@@ -29,11 +29,22 @@ int main() {
     printf("Отправитель готов. Введите сообщение:\n");
 
     while (1) {
-        fgets(buffer, BUFFER_SIZE, stdin);  // Чтение строки из терминала
+        fgets(buffer, BUFFER_SIZE, stdin); 
 
-        // Отправка сообщения серверу
         sendto(sockfd, buffer, strlen(buffer), 0,
             (struct sockaddr*)&server_addr, addr_len);
+
+        if (strncmp(buffer, "exit", 4) == 0) {
+            printf("Чат завершен.\n");
+            break;
+        }
+        sleep(1);
+        memset(buffer, 0, BUFFER_SIZE);
+
+        // Получение сообщения
+        recvfrom(sockfd, buffer, BUFFER_SIZE, 0,
+            (struct sockaddr*)&client_addr, &addr_len);
+        printf("Получено: %s", buffer);
 
         if (strncmp(buffer, "exit", 4) == 0) {
             printf("Чат завершен.\n");
