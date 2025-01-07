@@ -12,7 +12,8 @@
 typedef struct {
     int numbers[MAX_NUMBERS];  
     int min;                   
-    int max;                  
+    int max;      
+    int count;
 } shm_data_t;
 
 int shmid;  
@@ -24,7 +25,7 @@ void handle_sigint(int sig) {
         exit(1);
     }
 
-    printf("\nКоличество обработанных наборов: %d\n", shm_data->max);
+    printf("\nКоличество обработанных наборов: %d\n", shm_data->count);
     shmdt(shm_data); 
     shmctl(shmid, IPC_RMID, NULL);  
     exit(0);
@@ -75,6 +76,7 @@ int main() {
 
             printf("\nМинимальное значение: %d\n", shm_data->min);
             printf("Максимальное значение: %d\n", shm_data->max);
+            shm_data->count++;
         }
         else {
             perror("fork");
