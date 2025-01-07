@@ -51,7 +51,6 @@ int main() {
             break;
         }
 
-        sleep(2);  // Задержка, чтобы не получить свое сообщение
 
         // Получение ответа
         memset(buffer, 0, BUFFER_SIZE);
