@@ -3,16 +3,25 @@
 #include <string.h>
 #include <unistd.h>
 #include <arpa/inet.h>
+#include <limits.h>
 
 #define PORT 8080
 #define BUFFER_SIZE 1024
 
 void process_request(int client_socket) {
     char buffer[BUFFER_SIZE];
+    char server_directory[PATH_MAX];
     int num1, num2;
     char op;
     double result;
     FILE* file;
+
+    // Получение текущей директории сервера
+    if (getcwd(server_directory, sizeof(server_directory)) == NULL) {
+        perror("Ошибка получения текущей директории");
+        close(client_socket);
+        return;
+    }
 
     while (1) {
         memset(buffer, 0, BUFFER_SIZE);
@@ -22,12 +31,17 @@ void process_request(int client_socket) {
         if (strncmp(buffer, "file", 4) == 0) {
             char filename[BUFFER_SIZE];
             read(client_socket, filename, BUFFER_SIZE);
-            file = fopen(filename, "wb");
+
+            // Формирование полного пути файла
+            char filepath[PATH_MAX];
+            snprintf(filepath, PATH_MAX, "%s/%s", server_directory, filename);
+
+            file = fopen(filepath, "wb");
             if (file == NULL) {
                 perror("Ошибка открытия файла");
                 continue;
             }
-            printf("Прием файла: %s\n", filename);
+            printf("Прием файла: %s\n", filepath);
 
             ssize_t bytes_read;
             while ((bytes_read = read(client_socket, buffer, BUFFER_SIZE)) > 0) {
@@ -36,7 +50,7 @@ void process_request(int client_socket) {
             }
 
             fclose(file);
-            printf("Файл %s успешно получен.\n", filename);
+            printf("Файл %s успешно сохранен в директории сервера.\n", filepath);
             continue;
         }
 
